@@ -41,8 +41,8 @@
         }
 
         void main() {
-            vec4 sum = texture2D(samplerUniform, vec2(uvs.x, uvs.y)) * rnd(uvs * seed);
             if (blur == 1) {
+				vec4 sum = texture2D(samplerUniform, vec2(uvs.x, uvs.y)) * rnd(uvs * seed);
                 sum += texture2D(samplerUniform, vec2(uvs.x, uvs.y - yBlurSize)) * 0.33;
                 sum += texture2D(samplerUniform, vec2(uvs.x - xBlurSize, uvs.y - yBlurSize)) * 0.2;
                 sum += texture2D(samplerUniform, vec2(uvs.x + xBlurSize, uvs.y - yBlurSize)) * 0.2;
