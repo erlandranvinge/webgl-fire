@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Fire Demo</title>
+        <link href="fire.css" rel="stylesheet" type="text/css" media="all"/>
+     </head>
+
+    <body>
+        <canvas id="glCanvas">Your browser doesn't support HTML5, doh! :/</canvas>
+        <div id="infoText">
+            Add rectangle shaped emitters by passing them into the mask object constructor.<br />
+            Different gradients can either be calculated or looked-up using additional textures.
+        </div>
+    </body>
+    <script type="text/javascript" src="fire.js"></script>
+
+    <!-- Pretty much standard ortho vertex shader used to just transform vertices and interpolate texcoords -->
+    <script id="vertex" type="x-shader">
+        attribute vec2 vertexPositionAttribute;
+        attribute vec2 texCoordsAttribute;
+        uniform mat4 projectionMatrix;
+        varying vec2 uvs;
+        void main() {
+            gl_Position = projectionMatrix * vec4(vertexPositionAttribute, 0.0, 1.0);
+            uvs = texCoordsAttribute;
+        }
+    </script>
+
+    <!-- The fragment shader uses a simplified blur function to create fire effect -->
+    <script id="fragment" type="x-shader">
+        precision mediump float;
+        varying vec2 uvs;
+        uniform sampler2D samplerUniform;
+        uniform int blur;
+        uniform float seed;
+        const float xBlurSize = 1.0 / 256.0;
+        const float yBlurSize = 1.0 / 256.0;
+
+        float rnd(vec2 n) {
+            return 0.5 * fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
+        }
+
+        void main() {
+            vec4 sum = texture2D(samplerUniform, vec2(uvs.x, uvs.y)) * rnd(uvs * seed);
+            if (blur == 1) {
+                sum += texture2D(samplerUniform, vec2(uvs.x, uvs.y - yBlurSize)) * 0.33;
+                sum += texture2D(samplerUniform, vec2(uvs.x - xBlurSize, uvs.y - yBlurSize)) * 0.2;
+                sum += texture2D(samplerUniform, vec2(uvs.x + xBlurSize, uvs.y - yBlurSize)) * 0.2;
+                gl_FragColor = sum;
+            }
+            else {
+                gl_FragColor = texture2D(samplerUniform, vec2(uvs.x, uvs.y));
+            }
+        }
+    </script>
+
+    <script type="text/javascript">
+
+        /* Do a rendering pass with or without fire-effect bluring */
+        function renderPass(program, buffer, blur) {
+            gl.useProgram(program);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.enableVertexAttribArray(program.vertexPosition);
+            gl.enableVertexAttribArray(program.texCoords);
+            gl.vertexAttribPointer(program.vertexPosition, buffer.itemSize, gl.FLOAT, false, 16, 0);
+            gl.vertexAttribPointer(program.texCoords, buffer.itemSize, gl.FLOAT, false, 16, 8);
+            gl.uniform1i(program.blur, blur ? 1 : 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        };
+
+        /* Update tick, runs once per frame */
+        function tick() {
+            requestTick(tick);
+
+            /* Set random seed for shader */
+            gl.uniform1f(program.seed, Math.random());
+
+            /* Render mask to first frame buffer, i.e. generate random noise in emitter rectangle */
+            gl.bindFramebuffer(gl.FRAMEBUFFER, buffer1.frameBuffer);
+            gl.bindTexture(gl.TEXTURE_2D, buffer2.texture);
+            mask.render();
+
+            /* Do two passes of blur to create fire effect */
+            gl.bindFramebuffer(gl.FRAMEBUFFER, buffer2.frameBuffer);
+            gl.bindTexture(gl.TEXTURE_2D, buffer1.texture);
+            renderPass(program, screenSprite, true);
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, buffer1.frameBuffer);
+            gl.bindTexture(gl.TEXTURE_2D, buffer2.texture);
+            renderPass(program, screenSprite, true);
+
+            /* Render frame buffer to screen */
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.bindTexture(gl.TEXTURE_2D, buffer1.texture);
+            renderPass(program, screenSprite, false);
+        }
+
+        /* Get canvas element and initialize WebGL using it */
+        var canvas = document.getElementById('glCanvas');
+        var gl = glUtils.initGL(canvas, { width: 512, height: 512, preserveDrawingBuffer: true });
+
+        /* Build a mask geometry with a few rectangles used fill emitters with "random" noise */
+        var mask = new Mask([
+            {x: 50, y: 100, width: 100, height: 4},
+            {x: 200, y: 100, width: 40, height: 4}]);
+        var buffer1 = glUtils.buildFrameBuffer(gl.width, gl.height);
+        var buffer2 = glUtils.buildFrameBuffer(gl.width, gl.height);
+
+        /* Setup fire blur shader */
+        var program = glUtils.buildShader("vertex", "fragment");
+        program.vertexPosition = gl.getAttribLocation(program, "vertexPositionAttribute");
+        program.texCoords = gl.getAttribLocation(program, "texCoordsAttribute");
+        program.blur = gl.getUniformLocation(program, "blur");
+        program.seed = gl.getUniformLocation(program, "seed");
+        var projectionMatrix = glUtils.ortho(0, gl.width, 0, gl.height, -99999, 99999);
+        gl.useProgram(program);
+        gl.uniformMatrix4fv(program.projectionMatrix, false, projectionMatrix);
+
+        /* Build screen sprite */
+        var screenSprite = glUtils.buildSprite(0, 0, gl.width, gl.height);
+
+        /* Kick start animation */
+        requestTick(tick);
+    </script>
+</html>
