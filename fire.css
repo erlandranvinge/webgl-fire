@@ -1,5 +1,7 @@
 /* Fill entire screen with canvas, and present info text in the bottom */
 * { margin: 0; padding: 0;}
-body, html { height:100%; }
+body, html { height:100%; font-family: arial; font-weight: bold; color: #fff; }
 #glCanvas { position:absolute; width:100%; height:100%; }
-#infoText { position:absolute; left: 10%; top: 90%; font-family: arial; font-weight: bold; color: #fff; }
+#infoText { position:absolute; left: 10%; top: 90%; }
+#options { position:absolute; left: 50%; top: 10%; width: 250px; }
+#in_fragment_k { width: 100%; }
